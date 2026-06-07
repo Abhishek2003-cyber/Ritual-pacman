@@ -1,0 +1,6 @@
+# Ignore large video file (exceeds GitHub 100MB limit)
+background.mp4
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,3163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RITUAL PACMAN — On-Chain Retro-AI Arcade</title>
+  
+  <!-- Google Fonts import -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Press+Start+2P&display=swap');
+  </style>
+
+  <!-- Complete CSS Styling -->
+  <style>
+    :root {
+      --neon-purple: #b400ff;
+      --neon-cyan: #00f5ff;
+      --neon-green: #00ff88;
+      --neon-red: #ff0055;
+      --neon-yellow: #ffe600;
+      --neon-pink: #ff69b4;
+      --bg-dark: #020208;
+      --bg-panel: rgba(8, 8, 20, 0.85);
+      --font-arcade: 'Press Start 2P', monospace;
+      --font-ui: 'Orbitron', sans-serif;
+      --neon-theme: #00ff88;
+      --neon-theme-rgb: 0, 255, 136;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    
+    body {
+      background-color: var(--bg-dark);
+      color: #ffffff;
+      font-family: var(--font-ui);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Cyber grid lines background */
+    .grid-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        linear-gradient(rgba(var(--neon-theme-rgb), 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(var(--neon-theme-rgb), 0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      background-position: center;
+      transform: perspective(600px) rotateX(60deg) translateY(-25%) translateZ(0);
+      transform-origin: top;
+      animation: grid-move 24s linear infinite;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0.75;
+    }
+    
+    @keyframes grid-move {
+      0% { background-position: 0 0; }
+      100% { background-position: 0 800px; }
+    }
+
+    /* CRT scanline arcade overlay */
+    body::after {
+      content: " ";
+      display: block;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.18) 50%
+      );
+      z-index: 9999;
+      background-size: 100% 4px;
+      pointer-events: none;
+    }
+
+    /* Navbar (Top bar) */
+    .navbar {
+      height: 48px;
+      background: #04040d;
+      border-bottom: 2px solid var(--neon-theme);
+      box-shadow: 0 0 15px rgba(var(--neon-theme-rgb), 0.25);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+      z-index: 10;
+      position: relative;
+    }
+
+    .nav-left {
+      font-family: var(--font-arcade);
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .logo-ritual {
+      color: #ffffff;
+      text-shadow: 0 0 8px rgba(var(--neon-theme-rgb), 0.6);
+    }
+
+    .logo-pacman {
+      color: var(--neon-theme);
+      text-shadow: 0 0 8px var(--neon-theme);
+    }
+
+    .nav-center {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #8892b0;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background-color: var(--neon-green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--neon-green);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(0.9);
+        opacity: 0.6;
+        box-shadow: 0 0 4px var(--neon-green);
+      }
+      50% {
+        transform: scale(1.2);
+        opacity: 1;
+        box-shadow: 0 0 12px var(--neon-green);
+      }
+      100% {
+        transform: scale(0.9);
+        opacity: 0.6;
+        box-shadow: 0 0 4px var(--neon-green);
+      }
+    }
+
+    /* Wallet connect button styling */
+    .wallet-btn {
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: transparent;
+      padding: 6px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .wallet-disconnected {
+      border: 2px solid var(--neon-cyan);
+      color: var(--neon-cyan);
+      text-shadow: 0 0 4px var(--neon-cyan);
+      box-shadow: 0 0 8px rgba(0, 245, 255, 0.2);
+    }
+
+    .wallet-disconnected:hover {
+      background: var(--neon-cyan);
+      color: #000000;
+      box-shadow: 0 0 15px var(--neon-cyan);
+      text-shadow: none;
+    }
+
+    .wallet-connected {
+      border: 2px solid var(--neon-green);
+      color: var(--neon-green);
+      text-shadow: 0 0 4px var(--neon-green);
+      box-shadow: 0 0 8px rgba(0, 255, 136, 0.2);
+      cursor: default;
+    }
+
+    /* Screen manager */
+    #screen-container {
+      flex-grow: 1;
+      position: relative;
+      width: 100%;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 3;
+    }
+
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      box-sizing: border-box;
+      z-index: 2;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* 1. START SCREEN */
+    #start-screen {
+      background: radial-gradient(circle, rgba(14, 10, 45, 0.4) 0%, rgba(5, 5, 16, 0.1) 100%);
+    }
+
+    .start-container {
+      background: rgba(10, 10, 28, 0.85);
+      border: 2px solid var(--neon-theme);
+      box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.8),
+        0 0 25px rgba(var(--neon-theme-rgb), 0.35),
+        inset 0 0 15px rgba(var(--neon-theme-rgb), 0.15);
+      border-radius: 12px;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 540px;
+      width: 95%;
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      z-index: 5;
+    }
+
+    .start-title {
+      font-family: var(--font-arcade);
+      font-size: 30px;
+      color: #ffffff;
+      text-shadow: 
+        0 0 5px #fff,
+        0 0 10px var(--neon-theme),
+        0 0 20px var(--neon-theme),
+        0 0 40px var(--neon-theme);
+      animation: title-flicker 2.5s infinite alternate;
+      text-align: center;
+      margin: 0 0 8px 0;
+      line-height: 1.2;
+    }
+
+    @keyframes title-flicker {
+      0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+        text-shadow: 
+          0 0 5px #fff,
+          0 0 10px var(--neon-theme),
+          0 0 20px var(--neon-theme),
+          0 0 40px var(--neon-theme);
+      }
+      20%, 24%, 55% {
+        text-shadow: none;
+        color: rgba(var(--neon-theme-rgb), 0.3);
+      }
+    }
+
+    .start-subtitle {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      text-shadow: 0 0 8px var(--neon-cyan);
+      margin-bottom: 25px;
+      text-align: center;
+    }
+
+    /* Character preview grid */
+    .character-preview-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      width: 100%;
+    }
+
+    .preview-card {
+      background: rgba(5, 5, 15, 0.65);
+      border: 1px solid rgba(180, 0, 255, 0.25);
+      border-radius: 8px;
+      padding: 10px 4px;
+      flex: 1;
+      text-align: center;
+      transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+      min-width: 85px;
+    }
+
+    .preview-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 12px rgba(0, 245, 255, 0.25);
+    }
+
+    .preview-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin: 0 auto 8px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .preview-name {
+      font-family: var(--font-arcade);
+      font-size: 7.5px;
+      margin-bottom: 4px;
+    }
+
+    .preview-role {
+      font-size: 7.5px;
+      color: #8892b0;
+      text-transform: uppercase;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+
+    /* Blinking warning */
+    .connect-warning {
+      font-family: var(--font-arcade);
+      font-size: 9px;
+      color: var(--neon-red);
+      margin-bottom: 20px;
+      animation: blink 0.8s infinite;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    @keyframes blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+
+    /* Button neon style */
+    .neon-btn {
+      font-family: var(--font-arcade);
+      font-size: 13px;
+      padding: 12px 24px;
+      background: transparent;
+      border: 2px solid var(--neon-theme);
+      color: #ffffff;
+      text-shadow: 0 0 6px var(--neon-theme);
+      box-shadow: 0 0 10px rgba(var(--neon-theme-rgb), 0.3);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .neon-btn:hover:not(:disabled) {
+      background: var(--neon-theme);
+      box-shadow: 0 0 20px var(--neon-theme);
+      color: #000000;
+      text-shadow: none;
+    }
+
+    .neon-btn-cyan {
+      border-color: var(--neon-cyan);
+      color: #ffffff;
+      text-shadow: 0 0 6px var(--neon-cyan);
+      box-shadow: 0 0 10px rgba(0, 245, 255, 0.3);
+    }
+
+    .neon-btn-cyan:hover:not(:disabled) {
+      background: var(--neon-cyan);
+      color: #000000;
+      box-shadow: 0 0 20px var(--neon-cyan);
+      text-shadow: none;
+    }
+
+    .neon-btn-red {
+      border-color: var(--neon-red);
+      color: #ffffff;
+      text-shadow: 0 0 6px var(--neon-red);
+      box-shadow: 0 0 10px rgba(255, 0, 85, 0.3);
+    }
+
+    .neon-btn-red:hover:not(:disabled) {
+      background: var(--neon-red);
+      color: #ffffff;
+      box-shadow: 0 0 20px var(--neon-red);
+      text-shadow: 0 0 8px white;
+    }
+
+    .neon-btn-yellow {
+      border-color: var(--neon-yellow);
+      color: #ffffff;
+      text-shadow: 0 0 6px var(--neon-yellow);
+      box-shadow: 0 0 10px rgba(255, 230, 0, 0.3);
+    }
+
+    .neon-btn-yellow:hover:not(:disabled) {
+      background: var(--neon-yellow);
+      color: #000000;
+      box-shadow: 0 0 20px var(--neon-yellow);
+      text-shadow: none;
+    }
+
+    .btn-disabled {
+      border-color: #3f3f4e !important;
+      color: #5f5f74 !important;
+      text-shadow: none !important;
+      box-shadow: none !important;
+      cursor: not-allowed !important;
+    }
+
+    /* Network Info Panel */
+    .network-info-panel {
+      background: rgba(5, 5, 15, 0.85);
+      border: 1px solid var(--neon-cyan);
+      box-shadow: 0 0 10px rgba(0, 245, 255, 0.2);
+      border-radius: 6px;
+      width: 100%;
+      margin-bottom: 15px;
+      font-size: 11px;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+    }
+
+    .network-info-header {
+      padding: 10px 15px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      text-shadow: 0 0 4px var(--neon-cyan);
+      user-select: none;
+    }
+
+    .network-info-header:hover {
+      background: rgba(0, 245, 255, 0.1);
+    }
+
+    .network-info-body {
+      padding: 12px 15px;
+      border-top: 1px solid rgba(0, 245, 255, 0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: left;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 4px;
+    }
+
+    .info-row:last-of-type {
+      border-bottom: none;
+    }
+
+    .info-row strong {
+      color: #8892b0;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-row span {
+      color: #ffffff;
+      font-family: monospace;
+    }
+
+    .info-row span.url {
+      font-size: 10px;
+      color: var(--neon-theme);
+      text-shadow: 0 0 2px var(--neon-theme);
+      word-break: break-all;
+    }
+
+    .info-note {
+      margin-top: 6px;
+      font-size: 9px;
+      color: #8892b0;
+      line-height: 1.4;
+      text-align: center;
+      border-top: 1px dashed rgba(180, 0, 255, 0.2);
+      padding-top: 6px;
+    }
+
+    /* 2. GAME SCREEN (Futuristic Cabinet Shell Wrapper) */
+    #game-screen {
+      background: transparent;
+      justify-content: flex-start;
+      padding-top: 15px;
+    }
+
+    .arcade-cabinet {
+      background: #08081a;
+      border: 4px solid #111;
+      border-radius: 12px;
+      padding: 12px 12px 0 12px;
+      box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.8),
+        0 0 0 2px rgba(var(--neon-theme-rgb), 0.35),
+        0 0 25px rgba(0, 245, 255, 0.15);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 532px;
+    }
+
+    .arcade-cabinet::before {
+      content: "JOSH OPERATOR TERMINAL";
+      display: block;
+      width: 100%;
+      text-align: center;
+      font-family: var(--font-arcade);
+      font-size: 7.5px;
+      color: var(--neon-cyan);
+      text-shadow: 0 0 3px var(--neon-cyan);
+      background: #050512;
+      padding: 5px 0;
+      border-bottom: 2px solid rgba(0, 245, 255, 0.2);
+      margin-bottom: 10px;
+      border-radius: 4px;
+      letter-spacing: 1.5px;
+    }
+
+    .hud-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 8px;
+      font-family: var(--font-arcade);
+      font-size: 10px;
+      background: rgba(5, 5, 15, 0.6);
+      padding: 8px 12px;
+      border: 1px solid rgba(var(--neon-theme-rgb), 0.2);
+      border-radius: 4px;
+    }
+
+    .hud-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hud-label {
+      color: var(--neon-cyan);
+    }
+
+    .hud-val {
+      color: #ffffff;
+      font-weight: 900;
+    }
+
+    .lives-display {
+      display: flex;
+      gap: 6px;
+    }
+
+    .life-icon {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background-color: var(--neon-yellow);
+      border: 1.5px solid var(--neon-yellow);
+      box-shadow: 0 0 4px var(--neon-yellow);
+    }
+
+    /* Canvas Frame */
+    .canvas-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      position: relative;
+    }
+
+    #game-canvas {
+      border: 2px solid var(--neon-theme);
+      box-shadow: 0 0 20px rgba(var(--neon-theme-rgb), 0.45);
+      background-color: #03030b;
+      display: block;
+      max-width: min(calc(100vw - 32px), 504px);
+      width: 100%;
+      height: auto;
+      aspect-ratio: 21 / 22;
+      border-radius: 4px;
+    }
+
+    /* Bottom footer hud */
+    .game-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-top: 10px;
+      margin-bottom: 10px;
+      font-size: 11px;
+      color: #8892b0;
+      font-weight: 700;
+    }
+
+    .ai-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #ai-recalc-flash {
+      font-family: var(--font-arcade);
+      font-size: 7px;
+      opacity: 0;
+      color: var(--neon-red);
+      text-shadow: 0 0 5px var(--neon-red);
+      transition: opacity 0.15s ease;
+      font-weight: bold;
+    }
+
+    .leaderboard-toggle-btn {
+      font-family: var(--font-ui);
+      font-size: 10px;
+      font-weight: 700;
+      background: transparent;
+      border: 1px solid var(--neon-cyan);
+      color: var(--neon-cyan);
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+      text-shadow: 0 0 3px var(--neon-cyan);
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .leaderboard-toggle-btn:hover {
+      background: var(--neon-cyan);
+      color: #000000;
+      box-shadow: 0 0 8px var(--neon-cyan);
+      text-shadow: none;
+    }
+
+    .exit-game-btn {
+      font-family: var(--font-ui);
+      font-size: 10px;
+      font-weight: 700;
+      background: transparent;
+      border: 1px solid var(--neon-red);
+      color: var(--neon-red);
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+      text-shadow: 0 0 3px var(--neon-red);
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .exit-game-btn:hover {
+      background: var(--neon-red);
+      color: #ffffff;
+      box-shadow: 0 0 8px var(--neon-red);
+      text-shadow: 0 0 4px white;
+    }
+
+    /* Mobile D-pad grid layout */
+    .dpad-container {
+      display: grid;
+      grid-template-areas:
+        ". up ."
+        "left . right"
+        ". down .";
+      grid-template-columns: repeat(3, 48px);
+      grid-template-rows: repeat(3, 38px);
+      gap: 5px;
+      justify-content: center;
+      margin-top: 15px;
+      margin-bottom: 5px;
+    }
+
+    @media (min-width: 600px) {
+      .dpad-container {
+        display: none !important;
+      }
+    }
+
+    .dpad-btn {
+      background: rgba(10, 10, 25, 0.85);
+      border: 2px solid var(--neon-cyan);
+      color: var(--neon-cyan);
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .dpad-btn:active {
+      background: var(--neon-cyan);
+      color: #000000;
+      box-shadow: 0 0 10px var(--neon-cyan);
+    }
+
+    #dpad-up { grid-area: up; }
+    #dpad-down { grid-area: down; }
+    #dpad-left { grid-area: left; }
+    #dpad-right { grid-area: right; }
+
+    /* 3. GAME OVER SCREEN */
+    #gameover-screen {
+      background: radial-gradient(circle, rgba(74, 0, 24, 0.45) 0%, rgba(5, 5, 16, 0.1) 100%);
+    }
+
+    .gameover-container {
+      background: rgba(15, 5, 15, 0.85);
+      border: 2px solid var(--neon-red);
+      box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.8),
+        0 0 25px rgba(255, 0, 85, 0.35);
+      border-radius: 12px;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 440px;
+      width: 95%;
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      z-index: 5;
+      text-align: center;
+    }
+
+    .gameover-title {
+      font-family: var(--font-arcade);
+      font-size: 26px;
+      color: #ffffff;
+      text-shadow: 0 0 5px #fff, 0 0 10px var(--neon-red), 0 0 20px var(--neon-red);
+      margin: 0 0 15px 0;
+      animation: gameover-pulse 2s infinite alternate;
+    }
+
+    @keyframes gameover-pulse {
+      0% { text-shadow: 0 0 5px #fff, 0 0 10px var(--neon-red), 0 0 20px var(--neon-red); }
+      100% { text-shadow: 0 0 8px #fff, 0 0 18px var(--neon-red), 0 0 35px var(--neon-red); }
+    }
+
+    .gameover-score-wrap {
+      font-family: var(--font-arcade);
+      font-size: 14px;
+      color: var(--neon-yellow);
+      text-shadow: 0 0 6px var(--neon-yellow);
+      margin-bottom: 20px;
+    }
+
+    /* On chain transaction logger */
+    .tx-area {
+      background: rgba(5, 5, 12, 0.95);
+      border: 1px solid var(--neon-theme);
+      border-radius: 6px;
+      width: 100%;
+      height: 100px;
+      margin: 10px 0 25px 0;
+      padding: 12px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-family: var(--font-ui);
+      font-size: 11px;
+      text-align: left;
+      overflow-y: auto;
+      box-shadow: inset 0 0 8px rgba(var(--neon-theme-rgb), 0.25);
+    }
+
+    .tx-step {
+      color: #a0aec0;
+      animation: tx-slide 0.3s ease-out forwards;
+      line-height: 1.4;
+    }
+
+    .tx-success {
+      color: var(--neon-green);
+      text-shadow: 0 0 4px var(--neon-green);
+      font-weight: 700;
+    }
+
+    @keyframes tx-slide {
+      from { transform: translateY(6px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Progress Fill Loader */
+    .tx-loader-bar {
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .tx-loader-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--neon-cyan);
+      box-shadow: 0 0 8px var(--neon-cyan);
+    }
+
+    .tx-loader-active {
+      animation: fill-loader 3.5s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+    }
+
+    @keyframes fill-loader {
+      0% { width: 0%; background: var(--neon-cyan); }
+      30% { width: 40%; background: var(--neon-cyan); }
+      70% { width: 75%; background: var(--neon-purple); }
+      100% { width: 100%; background: var(--neon-green); }
+    }
+
+    .gameover-btn-group {
+      display: flex;
+      gap: 15px;
+    }
+
+    /* 4. LEVEL COMPLETE SCREEN */
+    #levelcomplete-screen {
+      background: radial-gradient(circle, rgba(0, 54, 18, 0.5) 0%, rgba(5, 5, 16, 0.1) 100%);
+    }
+
+    .levelcomplete-container {
+      background: rgba(5, 15, 5, 0.85);
+      border: 2px solid var(--neon-green);
+      box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.8),
+        0 0 25px rgba(0, 255, 136, 0.35);
+      border-radius: 12px;
+      padding: 35px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 440px;
+      width: 95%;
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      z-index: 5;
+      text-align: center;
+    }
+
+    .level-complete-title {
+      font-family: var(--font-arcade);
+      font-size: 23px;
+      color: #ffffff;
+      text-shadow: 0 0 10px var(--neon-green), 0 0 20px var(--neon-green);
+      animation: level-scale 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      text-align: center;
+      margin: 0 0 15px 0;
+    }
+
+    @keyframes level-scale {
+      from { transform: scale(0.6); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .level-complete-sub {
+      color: var(--neon-cyan);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      animation: blink 0.5s infinite alternate;
+      text-transform: uppercase;
+      text-shadow: 0 0 6px var(--neon-cyan);
+      margin-bottom: 20px;
+    }
+
+    .level-challenges {
+      font-size: 11px;
+      color: #a0aec0;
+      text-align: left;
+      line-height: 1.6;
+      border-top: 1px solid rgba(0, 255, 136, 0.2);
+      padding-top: 12px;
+      width: 100%;
+    }
+
+    .challenge-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .challenge-row strong {
+      color: var(--neon-green);
+    }
+
+    /* Leaderboard Slide Panel */
+    #leaderboard-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 290px;
+      height: 100%;
+      background: var(--bg-panel);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border-left: 2px solid var(--neon-theme);
+      box-shadow: -5px 0 25px rgba(var(--neon-theme-rgb), 0.3);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      padding: 20px;
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.1, 0.9, 0.2, 1);
+    }
+
+    #leaderboard-panel.open {
+      transform: translateX(0);
+    }
+
+    .leaderboard-title {
+      font-family: var(--font-ui);
+      font-size: 14px;
+      font-weight: 900;
+      color: #ffffff;
+      text-shadow: 0 0 6px var(--neon-theme);
+      margin: 10px 0 20px 0;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    .leaderboard-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .leaderboard-table th, .leaderboard-table td {
+      padding: 12px 6px;
+      text-align: left;
+      border-bottom: 1px solid rgba(var(--neon-theme-rgb), 0.15);
+    }
+
+    .leaderboard-table th {
+      color: var(--neon-cyan);
+      text-shadow: 0 0 3px var(--neon-cyan);
+      font-size: 9px;
+      text-transform: uppercase;
+      font-weight: 900;
+    }
+
+    .leaderboard-table td {
+      color: #e2e8f0;
+      font-weight: 700;
+    }
+
+    .neon-text-green {
+      color: var(--neon-green) !important;
+      text-shadow: 0 0 3px var(--neon-green);
+    }
+
+    .close-leaderboard-btn {
+      font-family: var(--font-arcade);
+      font-size: 8px;
+      padding: 10px;
+      background: transparent;
+      border: 1px solid var(--neon-red);
+      color: var(--neon-red);
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: auto;
+      text-shadow: 0 0 3px var(--neon-red);
+      transition: all 0.2s ease;
+      letter-spacing: 0.5px;
+    }
+
+    .close-leaderboard-btn:hover {
+      background: var(--neon-red);
+      color: #ffffff;
+      box-shadow: 0 0 10px var(--neon-red);
+      text-shadow: 0 0 4px white;
+    }
+
+    /* Background video style */
+    .bg-video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+      opacity: 0.22;
+      pointer-events: none;
+      transition: opacity 1.5s ease;
+    }
+
+    /* Diagnostics HUD styling */
+    .diagnostics-bar {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      background: rgba(4, 4, 12, 0.95);
+      border: 1px solid rgba(var(--neon-theme-rgb), 0.25);
+      border-top: none;
+      padding: 6px 12px;
+      font-family: var(--font-arcade);
+      font-size: 7px;
+      letter-spacing: 0.5px;
+      color: #636b8a;
+      box-shadow: 0 5px 10px rgba(0, 0, 0, 0.5);
+      border-bottom-left-radius: 6px;
+      border-bottom-right-radius: 6px;
+      margin-bottom: 10px;
+    }
+
+    .diag-item span {
+      color: var(--neon-cyan);
+      text-shadow: 0 0 2px var(--neon-cyan);
+    }
+
+    /* Level Map styling */
+    .level-map-container {
+      width: 100%;
+      background: rgba(5, 5, 15, 0.85);
+      border: 1px solid var(--neon-cyan);
+      box-shadow: 0 0 10px rgba(0, 245, 255, 0.15);
+      border-radius: 6px;
+      padding: 12px 15px;
+      margin-bottom: 15px;
+      backdrop-filter: blur(10px);
+      text-align: center;
+    }
+
+    .level-map-title {
+      font-family: var(--font-arcade);
+      font-size: 8px;
+      color: var(--neon-cyan);
+      text-shadow: 0 0 4px var(--neon-cyan);
+      margin-bottom: 12px;
+      letter-spacing: 1.5px;
+    }
+
+    .level-nodes-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      position: relative;
+      padding: 0 10px;
+    }
+
+    .level-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .node-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #101026;
+      border: 2px solid #3f3f4e;
+      transition: all 0.3s ease;
+    }
+
+    .node-label {
+      font-family: var(--font-arcade);
+      font-size: 6px;
+      color: #8892b0;
+      margin-top: 6px;
+      transition: all 0.3s ease;
+    }
+
+    .level-line {
+      flex-grow: 1;
+      height: 2px;
+      background: #3f3f4e;
+      z-index: 1;
+      margin: -12px -10px 0 -10px;
+      transition: all 0.3s ease;
+    }
+
+    /* Active / Completed Map States */
+    .level-node.completed .node-dot {
+      background: var(--neon-green);
+      border-color: var(--neon-green);
+      box-shadow: 0 0 10px var(--neon-green);
+    }
+    .level-node.completed .node-label {
+      color: var(--neon-green);
+    }
+
+    .level-node.active .node-dot {
+      background: #ffffff;
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 15px var(--neon-cyan), inset 0 0 4px var(--neon-cyan);
+      transform: scale(1.2);
+    }
+    .level-node.active .node-label {
+      color: var(--neon-cyan);
+      text-shadow: 0 0 4px var(--neon-cyan);
+    }
+
+    .level-line.completed {
+      background: var(--neon-green);
+      box-shadow: 0 0 4px var(--neon-green);
+    }
+
+    .node-details {
+      font-size: 9px;
+      color: #a0aec0;
+      line-height: 1.4;
+      border-top: 1px dashed rgba(255, 255, 255, 0.1);
+      padding-top: 8px;
+      margin-top: 5px;
+    }
+
+    /* Extra UI styling enhancements */
+    :root {
+      --neon-theme: #00ff88; /* Dynamic neon variable */
+      --neon-theme-rgb: 0, 255, 136;
+    }
+
+    /* Change borders dynamically */
+    .arcade-cabinet {
+      border-color: var(--neon-theme) !important;
+      box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.8),
+        0 0 0 2px var(--neon-theme),
+        0 0 25px rgba(180, 0, 255, 0.15) !important;
+    }
+
+    .hud-bar {
+      border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    #game-canvas {
+      border-color: var(--neon-theme) !important;
+      box-shadow: 0 0 20px rgba(180, 0, 255, 0.3) !important;
+    }
+
+    .levelcomplete-container {
+      border-color: var(--neon-theme) !important;
+      box-shadow: 0 0 25px rgba(0, 255, 136, 0.2) !important;
+    }
+
+    .start-logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 8px;
+      border: 2px solid var(--neon-theme, var(--neon-purple));
+      box-shadow: 0 0 15px var(--neon-theme, var(--neon-purple));
+      margin-bottom: 20px;
+      animation: start-logo-pulse 2s infinite alternate;
+    }
+
+    @keyframes start-logo-pulse {
+      0% {
+        transform: scale(0.98);
+        box-shadow: 0 0 10px var(--neon-theme, var(--neon-purple));
+      }
+      100% {
+        transform: scale(1.02);
+        box-shadow: 0 0 22px var(--neon-theme, var(--neon-purple));
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Cyber 3D grid moving background lines -->
+  <div class="grid-bg"></div>
+
+  <!-- Background Looping Video -->
+  <video id="bg-video" autoplay loop muted playsinline class="bg-video">
+    <source src="background.mp4" type="video/mp4">
+    <source src="https://assets.mixkit.co/videos/preview/mixkit-retro-futuristic-grid-background-with-laser-lights-43024-large.mp4" type="video/mp4">
+  </video>
+
+  <!-- Navbar (Top Bar) -->
+  <div class="navbar">
+    <div class="nav-left">
+      <img src="ritual-logo.jpg" alt="Ritual Logo" style="width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--neon-purple); box-shadow: 0 0 5px var(--neon-purple); margin-right: 2px;">
+      <span class="logo-ritual">RITUAL</span>
+      <span class="logo-pacman">PACMAN</span>
+    </div>
+    <div class="nav-center">
+      <span>AI Inference: Active</span>
+      <div class="pulse-dot"></div>
+    </div>
+    <div class="nav-right">
+      <button id="wallet-connect-btn" class="wallet-btn wallet-disconnected" onclick="connectWallet()">Connect Wallet</button>
+    </div>
+  </div>
+
+  <!-- Screen Content Area -->
+  <div id="screen-container">
+    
+    <!-- 1. START SCREEN -->
+    <div id="start-screen" class="screen">
+      <div class="start-container">
+        <img src="ritual-logo.jpg" class="start-logo" alt="Ritual Logo">
+        <h1 class="start-title">RITUAL PACMAN</h1>
+        <div class="start-subtitle">Powered by Ritual AI</div>
+        
+        <!-- Character Preview cards -->
+        <div class="character-preview-row">
+          <!-- Josh -->
+          <div class="preview-card">
+            <div class="preview-circle" style="background: rgba(255, 230, 0, 0.2); box-shadow: 0 0 10px var(--neon-yellow); border: 2px solid var(--neon-yellow); overflow: hidden;">
+              <img src="josh.png" alt="Josh" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            <div class="preview-name" style="color: var(--neon-yellow)">JOSH</div>
+            <div class="preview-role">Operator</div>
+          </div>
+
+          <!-- Bitty -->
+          <div class="preview-card">
+            <div class="preview-circle" style="background: rgba(255, 0, 85, 0.2); box-shadow: 0 0 10px var(--neon-red); border: 2px solid var(--neon-red); overflow: hidden;">
+              <img src="bitty.png" alt="Bitty" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            <div class="preview-name" style="color: var(--neon-red)">BITTY</div>
+            <div class="preview-role">Ambush</div>
+          </div>
+
+          <!-- Ritty -->
+          <div class="preview-card">
+            <div class="preview-circle" style="background: rgba(255, 105, 180, 0.2); box-shadow: 0 0 10px var(--neon-pink); border: 2px solid var(--neon-pink); overflow: hidden;">
+              <img src="ritty.svg" alt="Ritty" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            <div class="preview-name" style="color: var(--neon-pink)">RITTY</div>
+            <div class="preview-role">Chaos</div>
+          </div>
+
+          <!-- Ritualist -->
+          <div class="preview-card">
+            <div class="preview-circle" style="background: rgba(0, 245, 255, 0.15); box-shadow: 0 0 12px #00f5ff, 0 0 20px rgba(0,245,255,0.4); border: 2px solid #00f5ff; overflow: hidden;">
+              <img src="ritualist.png" alt="Ritualist" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            <div class="preview-name" style="color: #00f5ff; text-shadow: 0 0 8px #00f5ff;">RITUALIST</div>
+            <div class="preview-role">Chase</div>
+          </div>
+
+          <!-- Radient -->
+          <div class="preview-card">
+            <div class="preview-circle" style="background: rgba(255, 165, 0, 0.2); box-shadow: 0 0 10px #ffa500; border: 2px solid #ffa500; overflow: hidden;">
+              <img src="radient.svg" alt="Radient" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            <div class="preview-name" style="color: #ffa500">RADIENT</div>
+            <div class="preview-role">Scatter</div>
+          </div>
+        </div>
+
+        <!-- Network Info Panel -->
+        <div class="network-info-panel" id="network-info-panel">
+          <div class="network-info-header" onclick="toggleNetworkInfo()">
+            <span>🌐 Ritual Network Configuration Guide</span>
+            <span id="network-info-arrow">▼</span>
+          </div>
+          <div class="network-info-body hidden" id="network-info-body">
+            <div class="info-row">
+              <strong>Network Name:</strong>
+              <span>Ritual</span>
+            </div>
+            <div class="info-row">
+              <strong>Chain ID:</strong>
+              <span>1979</span>
+            </div>
+            <div class="info-row">
+              <strong>RPC URL:</strong>
+              <span class="url">https://rpc.ritualfoundation.org</span>
+            </div>
+            <div class="info-row">
+              <strong>Currency Symbol:</strong>
+              <span>RITUAL</span>
+            </div>
+            <div class="info-row">
+              <strong>Explorer URL:</strong>
+              <span class="url">https://explorer.ritualfoundation.org</span>
+            </div>
+            <div class="info-note">
+              MetaMask: Settings → Networks → Add network → Add a network manually. Paste the values above.
+            </div>
+          </div>
+        </div>
+
+        <!-- How to Play Panel -->
+        <div class="network-info-panel" id="game-guide-panel" style="border-color: var(--neon-purple); box-shadow: 0 0 10px rgba(180, 0, 255, 0.2); margin-top: -10px;">
+          <div class="network-info-header" onclick="toggleGameGuide()">
+            <span>🎮 How to Play Guide</span>
+            <span id="game-guide-arrow">▼</span>
+          </div>
+          <div class="network-info-body hidden" id="game-guide-body">
+            <div class="info-row">
+              <strong>Controls:</strong>
+              <span style="font-size: 10px; color: #fff;">Hold Arrow Keys / WASD (Touch D-pad)</span>
+            </div>
+            <div class="info-row">
+              <strong>Active Stop:</strong>
+              <span style="font-size: 10px; color: #fff;">Release keys to stop at next cell</span>
+            </div>
+            <div class="info-row">
+              <strong>Goal:</strong>
+              <span style="font-size: 10px; color: #fff;">Eat all dots & pellets. Avoid AI ghosts</span>
+            </div>
+            <div class="info-row">
+              <strong>Power Pellets:</strong>
+              <span style="font-size: 10px; color: #fff;">Pulsing cyan cells turn ghosts blue. Eat them!</span>
+            </div>
+            <div class="info-row">
+              <strong>Leaderboard:</strong>
+              <span style="font-size: 10px; color: #fff;">Submit final score on-chain via MetaMask</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual Cryptographic Level Map -->
+        <div class="level-map-container">
+          <div class="level-map-title">RITUAL NETWORK LEVEL MAP</div>
+          <div class="level-nodes-row">
+            <div class="level-node active" id="node-1" data-level="1">
+              <div class="node-dot"></div>
+              <div class="node-label">NODE 1</div>
+            </div>
+            <div class="level-line" id="line-1"></div>
+            <div class="level-node" id="node-2" data-level="2">
+              <div class="node-dot"></div>
+              <div class="node-label">NODE 2</div>
+            </div>
+            <div class="level-line" id="line-2"></div>
+            <div class="level-node" id="node-3" data-level="3">
+              <div class="node-dot"></div>
+              <div class="node-label">NODE 3</div>
+            </div>
+            <div class="level-line" id="line-3"></div>
+            <div class="level-node" id="node-4" data-level="4">
+              <div class="node-dot"></div>
+              <div class="node-label">NODE 4</div>
+            </div>
+            <div class="level-line" id="line-4"></div>
+            <div class="level-node" id="node-5" data-level="5">
+              <div class="node-dot"></div>
+              <div class="node-label">NODE 5</div>
+            </div>
+          </div>
+          <div class="node-details" id="node-details-text">
+            Genesis Node (Level 1): Base speed settings. AI threat: Relaxed.
+          </div>
+        </div>
+
+        <!-- Warning label before connect -->
+        <div id="connect-warning" class="connect-warning">⚡ CONNECT WALLET TO PLAY ⚡</div>
+        
+        <!-- Start button -->
+        <button id="start-game-btn" class="neon-btn btn-disabled" disabled onclick="startGame()">Start Game</button>
+      </div>
+    </div>
+
+    <!-- 2. GAME SCREEN -->
+    <div id="game-screen" class="screen hidden">
+      <!-- Arcade Cabinet Shell -->
+      <div class="arcade-cabinet">
+        <!-- HUD -->
+        <div class="hud-bar">
+          <div class="hud-item">
+            <span class="hud-label">SCORE:</span>
+            <span id="score-display" class="hud-val">0</span>
+          </div>
+          <div class="hud-item">
+            <span class="hud-label">LIVES:</span>
+            <div id="lives-display" class="lives-display">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+          <div class="hud-item">
+            <span class="hud-label">LVL:</span>
+            <span id="level-display" class="hud-val">1</span>
+          </div>
+        </div>
+
+        <!-- Main Canvas Frame -->
+        <div class="canvas-container">
+          <canvas id="game-canvas"></canvas>
+        </div>
+
+        <!-- Live Diagnostics HUD Bar -->
+        <div class="diagnostics-bar">
+          <div class="diag-item">LATENCY: <span id="diag-latency">12ms</span></div>
+          <div class="diag-item">GAS: <span id="diag-gas">25 GWEI</span></div>
+          <div class="diag-item">BLOCK: <span id="diag-block">#1979024</span></div>
+          <div class="diag-item">NODE STATUS: <span id="diag-status" style="color: var(--neon-green)">ONLINE</span></div>
+        </div>
+
+        <!-- Footer hud -->
+        <div class="game-footer">
+          <div class="ai-indicator">
+            <span>AI Inference: Active 🟢</span>
+          </div>
+          <div>
+            <span id="ai-recalc-flash">⚡ AI Recalculating...</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="exit-game-btn" onclick="exitGame()">🚪 Exit</button>
+            <button class="leaderboard-toggle-btn" onclick="toggleLeaderboard()">📊 Leaderboard</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Touch D-pad for mobile -->
+      <div class="dpad-container">
+        <button id="dpad-up" class="dpad-btn">▲</button>
+        <button id="dpad-left" class="dpad-btn">◀</button>
+        <button id="dpad-right" class="dpad-btn">▶</button>
+        <button id="dpad-down" class="dpad-btn">▼</button>
+      </div>
+    </div>
+
+    <!-- 3. GAME OVER SCREEN -->
+    <div id="gameover-screen" class="screen hidden">
+      <div class="gameover-container">
+        <h2 class="gameover-title">GAME OVER</h2>
+        <div class="gameover-score-wrap">
+          SCORE: <span id="final-score-display">0</span>
+        </div>
+        
+        <!-- Transaction flow output -->
+        <div id="tx-flow-area" class="tx-area">
+          <!-- Steps output via JS -->
+        </div>
+        
+        <!-- Buttons -->
+        <div class="gameover-btn-group">
+          <button id="submit-onchain-btn" class="neon-btn neon-btn-cyan" onclick="submitScoreOnChain()">⛓ Submit On-Chain</button>
+          <button class="neon-btn neon-btn-red" onclick="playAgain()">↺ Play Again</button>
+          <button class="neon-btn neon-btn-yellow" onclick="goToHome()">🏠 Home</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. LEVEL COMPLETE SCREEN -->
+    <div id="levelcomplete-screen" class="screen hidden">
+      <div class="levelcomplete-container">
+        <h2 class="level-complete-title">LEVEL COMPLETE!</h2>
+        <div class="level-complete-sub">PREPARING LEVEL <span id="next-level-val">2</span>...</div>
+        
+        <!-- Level Challenges Panel -->
+        <div class="level-challenges">
+          <div class="challenge-row">
+            <strong>Ghost Base Speed:</strong>
+            <span id="ghost-speed-val">+0.3 px/frame</span>
+          </div>
+          <div class="challenge-row">
+            <strong>Scared Mode Limit:</strong>
+            <span id="scared-time-val">-40 frames</span>
+          </div>
+          <div class="challenge-row">
+            <strong>AI Reaction:</strong>
+            <span>Faster Recalculation</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Leaderboard Side slide-in Panel -->
+  <div id="leaderboard-panel">
+    <div class="leaderboard-title">📊 ON-CHAIN LEADERBOARD</div>
+    
+    <table class="leaderboard-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Wallet</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody id="leaderboard-tbody">
+        <!-- Seed data renders here -->
+      </tbody>
+    </table>
+    
+    <button class="close-leaderboard-btn" onclick="toggleLeaderboard()">CLOSE PANEL</button>
+  </div>
+
+  <!-- Core JavaScript Logic -->
+  <script>
+    // Web Audio Synthesizer for retro sounds (100% offline)
+    const SoundEffects = {
+      ctx: null,
+      init() {
+        if (!this.ctx) {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+      },
+      playMunch() {
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        const now = this.ctx.currentTime;
+        const isEven = Math.floor(now * 12) % 2 === 0;
+        osc.frequency.setValueAtTime(isEven ? 400 : 300, now);
+        osc.frequency.exponentialRampToValueAtTime(isEven ? 750 : 550, now + 0.07);
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+        osc.type = 'triangle';
+        osc.start(now);
+        osc.stop(now + 0.07);
+      },
+      playPellet() {
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        const now = this.ctx.currentTime;
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(1000, now + 0.25);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.type = 'sawtooth';
+        osc.start(now);
+        osc.stop(now + 0.25);
+      },
+      playEatGhost() {
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        const now = this.ctx.currentTime;
+        osc.frequency.setValueAtTime(500, now);
+        osc.frequency.setValueAtTime(800, now + 0.08);
+        osc.frequency.setValueAtTime(1100, now + 0.16);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.type = 'sine';
+        osc.start(now);
+        osc.stop(now + 0.25);
+      },
+      playDeath() {
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        const now = this.ctx.currentTime;
+        osc.frequency.setValueAtTime(500, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.75);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+        osc.type = 'sawtooth';
+        osc.start(now);
+        osc.stop(now + 0.75);
+      },
+      playVictory() {
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const now = this.ctx.currentTime;
+        const notes = [261.63, 329.63, 392.00, 523.25, 392.00, 523.25];
+        const durations = [0.08, 0.08, 0.08, 0.12, 0.08, 0.25];
+        let currentStart = now;
+        notes.forEach((freq, index) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, currentStart);
+          gain.gain.setValueAtTime(0.08, currentStart);
+          gain.gain.exponentialRampToValueAtTime(0.001, currentStart + durations[index]);
+          osc.start(currentStart);
+          osc.stop(currentStart + durations[index]);
+          currentStart += durations[index];
+        });
+      },
+      playClick() {
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        const now = this.ctx.currentTime;
+        osc.frequency.setValueAtTime(700, now);
+        osc.frequency.exponentialRampToValueAtTime(150, now + 0.04);
+        gain.gain.setValueAtTime(0.04, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+        osc.type = 'sine';
+        osc.start(now);
+        osc.stop(now + 0.04);
+      }
+    };
+
+    // Level progression configurations
+    const LEVEL_CONFIGS = {
+      1: {
+        name: "Genesis Node",
+        color: "#00ff88",
+        rgb: "0, 255, 136",
+        speed: 1.8,
+        scaredTime: 480,
+        recalcMin: 120,
+        recalcMax: 180,
+        desc: "Genesis Node (Level 1): Base speed settings. AI threat: Relaxed."
+      },
+      2: {
+        name: "Inference Engine",
+        color: "#00ffcc",
+        rgb: "0, 255, 204",
+        speed: 2.1,
+        scaredTime: 390,
+        recalcMin: 95,
+        recalcMax: 155,
+        desc: "Inference Engine (Level 2): Aggressive AI. 6.5s Scared Mode. Shorter response windows."
+      },
+      3: {
+        name: "Cryptographic Maze",
+        color: "#39ff14",
+        rgb: "57, 255, 20",
+        speed: 2.4,
+        scaredTime: 300,
+        recalcMin: 70,
+        recalcMax: 130,
+        desc: "Cryptographic Maze (Level 3): High speed ghosts. 5s Scared Mode. Fast path calculations."
+      },
+      4: {
+        name: "Consensus Breach",
+        color: "#00f5ff",
+        rgb: "0, 245, 255",
+        speed: 2.7,
+        scaredTime: 210,
+        recalcMin: 45,
+        recalcMax: 100,
+        desc: "Consensus Breach (Level 4): Extreme threat. 3.5s Scared Mode. Near instant reactions."
+      },
+      5: {
+        name: "Sovereign AI",
+        color: "#adff2f",
+        rgb: "173, 255, 47",
+        speed: 3.0,
+        scaredTime: 120,
+        recalcMin: 15,
+        recalcMax: 50,
+        desc: "Sovereign AI (Level 5): Instantaneous chase. 2s Scared Mode. Maximum speed."
+      }
+    };
+
+    function applyLevelTheme(lvl) {
+      const config = LEVEL_CONFIGS[lvl] || LEVEL_CONFIGS[5];
+      const root = document.documentElement;
+      root.style.setProperty('--neon-theme', config.color);
+      root.style.setProperty('--neon-theme-rgb', config.rgb);
+      
+      // Update logo and headers to flash the new theme color
+      const logo = document.querySelector('.logo-pacman');
+      if (logo) {
+        logo.style.color = config.color;
+        logo.style.textShadow = `0 0 8px ${config.color}`;
+      }
+      
+      // Update map UI node states
+      for (let i = 1; i <= 5; i++) {
+        const node = document.getElementById(`node-${i}`);
+        const line = document.getElementById(`line-${i}`);
+        if (node) {
+          if (i < lvl) {
+            node.className = "level-node completed";
+          } else if (i === lvl) {
+            node.className = "level-node active";
+          } else {
+            node.className = "level-node";
+          }
+        }
+        if (line) {
+          if (i < lvl) {
+            line.className = "level-line completed";
+          } else {
+            line.className = "level-line";
+          }
+        }
+      }
+
+      // Update node details description text
+      const descText = document.getElementById('node-details-text');
+      if (descText) {
+        descText.innerText = config.desc;
+        descText.style.color = config.color;
+        descText.style.textShadow = `0 0 2px ${config.color}`;
+      }
+    }
+
+    // Game constants
+    const COLS = 21;
+    const ROWS = 22;
+    const CELL = 24;
+    const DIRS = [
+      { x: 0, y: -1 }, // Up
+      { x: 0, y: 1 },  // Down
+      { x: -1, y: 0 }, // Left
+      { x: 1, y: 0 }   // Right
+    ];
+
+    // Core Canvas components
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Setup scaling
+    canvas.width = COLS * CELL; // 504
+    canvas.height = ROWS * CELL; // 528
+
+    // Game variables
+    let score = 0;
+    let level = 1;
+    let lives = 3;
+    let powerModeTimer = 0;
+    let activeScreen = 'start';
+    let lastTime = 0;
+    
+    // Wallet connect state
+    let walletConnected = false;
+    let walletAddr = '';
+    let scoreSubmitted = false;
+
+    // Leaderboard state
+    let leaderboard = [
+      { wallet: '0xRitu...al01', score: 8420 },
+      { wallet: '0xJosh...ab12', score: 6800 },
+      { wallet: '0xBitt...y33f', score: 5500 },
+      { wallet: '0xRitt...4a9b', score: 4100 },
+      { wallet: '0xNode...7c2e', score: 3200 }
+    ];
+
+    // Recalculation flash timer
+    let recalcFlashTimer = 0;
+
+    // Maze definition
+    let maze = [];
+    const originalMaze = [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,2,2,2,2,2,2,2,2,2,1,2,2,2,2,2,2,2,2,2,1],
+      [1,3,1,1,2,1,1,1,2,1,1,1,2,1,1,1,2,1,1,3,1],
+      [1,2,1,1,2,1,1,1,2,1,1,1,2,1,1,1,2,1,1,2,1],
+      [1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+      [1,2,1,1,2,1,2,1,1,1,1,1,1,1,2,1,2,1,1,2,1],
+      [1,2,2,2,2,1,2,2,2,2,1,2,2,2,2,1,2,2,2,2,1],
+      [1,1,1,1,2,1,1,1,0,0,0,0,0,1,1,1,2,1,1,1,1],
+      [0,0,0,1,2,1,0,0,4,4,4,4,4,0,0,1,2,1,0,0,0],
+      [1,1,1,1,2,1,0,4,4,4,4,4,4,4,0,1,2,1,1,1,1],
+      [0,0,0,0,2,0,0,4,4,4,4,4,4,4,0,0,2,0,0,0,0],
+      [1,1,1,1,2,1,0,4,4,4,4,4,4,4,0,1,2,1,1,1,1],
+      [0,0,0,1,2,1,0,0,0,0,0,0,0,0,0,1,2,1,0,0,0],
+      [1,1,1,1,2,1,0,1,1,1,1,1,1,1,0,1,2,1,1,1,1],
+      [1,2,2,2,2,2,2,2,2,2,1,2,2,2,2,2,2,2,2,2,1],
+      [1,2,1,1,2,1,1,1,2,1,1,1,2,1,1,1,2,1,1,2,1],
+      [1,3,2,1,2,2,2,2,2,2,0,2,2,2,2,2,2,1,2,3,1],
+      [1,1,2,1,2,1,2,1,1,1,1,1,1,1,2,1,2,1,2,1,1],
+      [1,2,2,2,2,1,2,2,2,2,1,2,2,2,2,1,2,2,2,2,1],
+      [1,2,1,1,1,1,1,1,2,1,1,1,2,1,1,1,1,1,1,2,1],
+      [1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ];
+
+    // Character Objects
+    const player = {
+      name: 'JOSH',
+      color: '#ffe600',
+      x: 10 * CELL,
+      y: 16 * CELL,
+      dirX: 0,
+      dirY: 0,
+      nextDirX: 0,
+      nextDirY: 0,
+      img: new Image()
+    };
+    player.img.src = 'josh.png';
+
+    const ghosts = [
+      {
+        name: 'BITTY',
+        color: '#ff0055',
+        mode: 'ambush',
+        x: 9 * CELL,
+        y: 9 * CELL,
+        dirX: 0,
+        dirY: 0,
+        recalcTimer: 0,
+        scared: false,
+        img: new Image()
+      },
+      {
+        name: 'RITTY',
+        color: '#ff69b4',
+        mode: 'random',
+        x: 11 * CELL,
+        y: 9 * CELL,
+        dirX: 0,
+        dirY: 0,
+        recalcTimer: 0,
+        scared: false,
+        img: new Image()
+      },
+      {
+        name: 'RITUALIST',
+        color: '#00f5ff',
+        mode: 'chase',
+        x: 9 * CELL,
+        y: 10 * CELL,
+        dirX: 0,
+        dirY: 0,
+        recalcTimer: 0,
+        scared: false,
+        img: new Image()
+      },
+      {
+        name: 'RADIENT',
+        color: '#ffa500',
+        mode: 'scatter',
+        x: 11 * CELL,
+        y: 10 * CELL,
+        dirX: 0,
+        dirY: 0,
+        recalcTimer: 0,
+        scared: false,
+        img: new Image()
+      }
+    ];
+    ghosts[0].img.src = 'bitty.png';
+    ghosts[1].img.src = 'ritty.svg';
+    ghosts[2].img.src = 'ritualist.png';
+    ghosts[3].img.src = 'radient.svg';
+
+
+    function connectMockWallet() {
+      walletAddr = "0x" + Array.from({length: 40}, () => "0123456789abcdef"[Math.floor(Math.random()*16)]).join("");
+      walletConnected = true;
+
+      // Update button visual: show shortened address
+      const shortAddr = `${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)} (SANDBOX)`;
+      const btn = document.getElementById('wallet-connect-btn');
+      if (btn) {
+        btn.innerText = shortAddr;
+        btn.classList.remove('wallet-disconnected');
+        btn.classList.add('wallet-connected');
+      }
+
+      // Remove Warning label
+      const warning = document.getElementById('connect-warning');
+      if (warning) warning.style.display = 'none';
+
+      // Enable Start game button
+      const startBtn = document.getElementById('start-game-btn');
+      if (startBtn) {
+        startBtn.disabled = false;
+        startBtn.classList.remove('btn-disabled');
+      }
+
+      renderLeaderboard();
+      SoundEffects.playClick();
+    }
+
+    // 1. Web3 Wallet Connect (MetaMask / EVM)
+    async function connectWallet() {
+      if (typeof window.ethereum === 'undefined') {
+        if (confirm('MetaMask not detected. Would you like to enter Sandbox Mode with a simulated wallet to play and test the game?')) {
+          connectMockWallet();
+        }
+        return;
+      }
+
+      try {
+        // Request accounts
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const address = accounts[0];
+        walletAddr = address;
+
+        // Try to switch to Ritual Chain (1979 -> 0x7bb in hex)
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x7bb' }],
+          });
+        } catch (switchError) {
+          // Chain not added to wallet
+          if (switchError.code === 4902) {
+            try {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [
+                  {
+                    chainId: '0x7bb',
+                    chainName: 'Ritual',
+                    rpcUrls: ['https://rpc.ritualfoundation.org'],
+                    nativeCurrency: {
+                      name: 'RITUAL',
+                      symbol: 'RITUAL',
+                      decimals: 18,
+                    },
+                    blockExplorerUrls: ['https://explorer.ritualfoundation.org'],
+                  },
+                ],
+              });
+            } catch (addError) {
+              console.error('Error adding Ritual chain:', addError);
+            }
+          } else {
+            console.error('Error switching chain:', switchError);
+          }
+        }
+
+        walletConnected = true;
+
+        // Update button visual: show shortened address
+        const shortAddr = `${address.slice(0, 6)}...${address.slice(-4)}`;
+        const btn = document.getElementById('wallet-connect-btn');
+        btn.innerText = shortAddr;
+        btn.classList.remove('wallet-disconnected');
+        btn.classList.add('wallet-connected');
+
+        // Remove Warning label
+        const warning = document.getElementById('connect-warning');
+        if (warning) warning.style.display = 'none';
+
+        // Enable Start game button
+        const startBtn = document.getElementById('start-game-btn');
+        if (startBtn) {
+          startBtn.disabled = false;
+          startBtn.classList.remove('btn-disabled');
+        }
+
+        renderLeaderboard();
+
+      } catch (error) {
+        console.error('Wallet connection rejected:', error);
+        if (confirm('Wallet connection failed/rejected. Launch Sandbox Play mode with a simulated wallet instead?')) {
+          connectMockWallet();
+        }
+      }
+    }
+
+    // Toggle Network Information Collapsible
+    function toggleNetworkInfo() {
+      const body = document.getElementById('network-info-body');
+      const arrow = document.getElementById('network-info-arrow');
+      if (body.classList.contains('hidden')) {
+        body.classList.remove('hidden');
+        arrow.innerText = '▲';
+      } else {
+        body.classList.add('hidden');
+        arrow.innerText = '▼';
+      }
+    }
+
+    // Toggle Game Guide Collapsible
+    function toggleGameGuide() {
+      const body = document.getElementById('game-guide-body');
+      const arrow = document.getElementById('game-guide-arrow');
+      if (body.classList.contains('hidden')) {
+        body.classList.remove('hidden');
+        arrow.innerText = '▲';
+      } else {
+        body.classList.add('hidden');
+        arrow.innerText = '▼';
+      }
+    }
+
+    // 2. Screen Navigator
+    function showScreen(screenId) {
+      activeScreen = screenId;
+
+      document.getElementById('start-screen').classList.add('hidden');
+      document.getElementById('game-screen').classList.add('hidden');
+      document.getElementById('gameover-screen').classList.add('hidden');
+      document.getElementById('levelcomplete-screen').classList.add('hidden');
+
+      if (screenId === 'start') {
+        document.getElementById('start-screen').classList.remove('hidden');
+      } else if (screenId === 'game') {
+        document.getElementById('game-screen').classList.remove('hidden');
+      } else if (screenId === 'gameover') {
+        document.getElementById('gameover-screen').classList.remove('hidden');
+        document.getElementById('final-score-display').innerText = score;
+        
+        // Reset submit button state
+        const submitBtn = document.getElementById('submit-onchain-btn');
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('btn-disabled');
+        document.getElementById('tx-flow-area').innerHTML = '';
+        scoreSubmitted = false;
+
+        // Auto trigger score submission on gameover screen load
+        setTimeout(() => {
+          submitScoreOnChain();
+        }, 800);
+      } else if (screenId === 'levelcomplete') {
+        document.getElementById('levelcomplete-screen').classList.remove('hidden');
+      }
+    }
+
+    // 3. Leaderboard Toggle
+    function toggleLeaderboard() {
+      const panel = document.getElementById('leaderboard-panel');
+      panel.classList.toggle('open');
+    }
+
+    function renderLeaderboard() {
+      const tbody = document.getElementById('leaderboard-tbody');
+      tbody.innerHTML = '';
+
+      // Sort leaderboard descending
+      leaderboard.sort((a, b) => b.score - a.score);
+
+      const userShortAddr = walletConnected ? `${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}` : '';
+
+      leaderboard.forEach((entry, idx) => {
+        const tr = document.createElement('tr');
+        const isUser = walletConnected && entry.wallet.toLowerCase() === userShortAddr.toLowerCase();
+        
+        tr.innerHTML = `
+          <td>${idx + 1}</td>
+          <td style="color: ${isUser ? 'var(--neon-yellow)' : 'white'}; text-shadow: ${isUser ? '0 0 4px var(--neon-yellow)' : 'none'};">${entry.wallet}</td>
+          <td class="neon-text-green">${entry.score}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 4. On-Chain Submission to Ritual Chain
+    async function submitScoreOnChain() {
+      if (scoreSubmitted || !walletConnected) return;
+
+      scoreSubmitted = true;
+      const btn = document.getElementById('submit-onchain-btn');
+      btn.disabled = true;
+      btn.classList.add('btn-disabled');
+
+      const container = document.getElementById('tx-flow-area');
+      container.innerHTML = '';
+
+      // Step 1
+      const step1 = document.createElement('div');
+      step1.className = 'tx-step';
+      step1.innerText = '⏳ Verifying network connection...';
+      container.appendChild(step1);
+
+      try {
+        if (typeof window.ethereum === 'undefined' || !window.ethereum.request) {
+          // Sandbox Mode flow simulation
+          // Step 2
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const step2 = document.createElement('div');
+          step2.className = 'tx-step';
+          step2.innerText = '⚡ [SANDBOX] Signing mock transaction...';
+          container.appendChild(step2);
+
+          // Step 3
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const step3 = document.createElement('div');
+          step3.className = 'tx-step';
+          step3.innerText = '⛏ [SANDBOX] Mining mock transaction block...';
+          container.appendChild(step3);
+
+          const loaderBar = document.createElement('div');
+          loaderBar.className = 'tx-loader-bar';
+          const loaderFill = document.createElement('div');
+          loaderFill.className = 'tx-loader-fill tx-loader-active';
+          loaderBar.appendChild(loaderFill);
+          container.appendChild(loaderBar);
+
+          await new Promise(resolve => setTimeout(resolve, 3500));
+
+          // Step 4
+          const mockHash = '0x' + Array.from({length: 64}, () => "0123456789abcdef"[Math.floor(Math.random()*16)]).join("");
+          const step4 = document.createElement('div');
+          step4.className = 'tx-step tx-success';
+          step4.innerText = `✓ Mock Score submitted! Tx: ${mockHash.slice(0, 10)}...${mockHash.slice(-4)}`;
+          container.appendChild(step4);
+
+          // Add to leaderboard state
+          const displayAddr = `${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}`;
+          const existingIndex = leaderboard.findIndex(item => item.wallet.toLowerCase() === displayAddr.toLowerCase());
+          if (existingIndex !== -1) {
+            if (score > leaderboard[existingIndex].score) {
+              leaderboard[existingIndex].score = score;
+            }
+          } else {
+            leaderboard.push({ wallet: displayAddr, score: score });
+          }
+          
+          renderLeaderboard();
+
+          setTimeout(() => {
+            const panel = document.getElementById('leaderboard-panel');
+            if (panel && !panel.classList.contains('open')) {
+              panel.classList.add('open');
+            }
+          }, 1000);
+          return;
+        }
+
+        // Ensure we are on Ritual Chain (0x7bb)
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (chainId !== '0x7bb') {
+          // Switch to Ritual Chain
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x7bb' }],
+          });
+        }
+
+        // Encode Pacman Score into transaction Data payload
+        const scoreText = `RITUAL_PACMAN_SCORE:${score}`;
+        let hexData = '0x';
+        for (let i = 0; i < scoreText.length; i++) {
+          hexData += scoreText.charCodeAt(i).toString(16);
+        }
+
+        // Step 2
+        const step2 = document.createElement('div');
+        step2.className = 'tx-step';
+        step2.innerText = '⚡ Requesting MetaMask signature...';
+        container.appendChild(step2);
+
+        // Send 0.01 RITUAL fee transaction to score record address using Ritual Testnet tokens
+        const txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [
+            {
+              from: walletAddr,
+              to: '0x0000000000000000000000000000000000001979', // Ritual Score Record Burn Address
+              value: '0x2386f26fc10000', // 0.01 RITUAL (in hex wei)
+              data: hexData,
+            },
+          ],
+        });
+
+        // Step 3
+        const step3 = document.createElement('div');
+        step3.className = 'tx-step';
+        step3.innerText = '⛏ Mining transaction block...';
+        container.appendChild(step3);
+
+        // Add visual mining progress loader bar
+        const loaderBar = document.createElement('div');
+        loaderBar.className = 'tx-loader-bar';
+        const loaderFill = document.createElement('div');
+        loaderFill.className = 'tx-loader-fill tx-loader-active';
+        loaderBar.appendChild(loaderFill);
+        container.appendChild(loaderBar);
+
+        // Poll transaction receipt
+        let receipt = null;
+        for (let i = 0; i < 20; i++) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          receipt = await window.ethereum.request({
+            method: 'eth_getTransactionReceipt',
+            params: [txHash],
+          });
+          if (receipt) break;
+        }
+
+        // Step 4
+        const step4 = document.createElement('div');
+        step4.className = 'tx-step tx-success';
+        step4.innerText = `✓ Score submitted! Tx: ${txHash.slice(0, 10)}...${txHash.slice(-4)}`;
+        container.appendChild(step4);
+
+        // Add to leaderboard state
+        const displayAddr = `${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}`;
+        
+        // Check if user already exists, if so update score, else add new
+        const existingIndex = leaderboard.findIndex(item => item.wallet.toLowerCase() === displayAddr.toLowerCase());
+        if (existingIndex !== -1) {
+          if (score > leaderboard[existingIndex].score) {
+            leaderboard[existingIndex].score = score;
+          }
+        } else {
+          leaderboard.push({ wallet: displayAddr, score: score });
+        }
+        
+        renderLeaderboard();
+
+        setTimeout(() => {
+          const panel = document.getElementById('leaderboard-panel');
+          if (panel && !panel.classList.contains('open')) {
+            panel.classList.add('open');
+          }
+        }, 1000);
+
+      } catch (error) {
+        console.error('On-chain submission error:', error);
+        scoreSubmitted = false;
+        btn.disabled = false;
+        btn.classList.remove('btn-disabled');
+
+        const errorStep = document.createElement('div');
+        errorStep.className = 'tx-step';
+        errorStep.style.color = 'var(--neon-red)';
+        errorStep.innerText = `❌ Error: ${error.message || 'User rejected'}`;
+        container.appendChild(errorStep);
+      }
+    }
+
+    // 5. Game Mechanics: Map reset and Character Position reset
+    function resetMaze() {
+      maze = originalMaze.map(row => [...row]);
+    }
+
+    function resetPositions() {
+      player.x = 10 * CELL;
+      player.y = 16 * CELL;
+      player.dirX = 0;
+      player.dirY = 0;
+      player.nextDirX = 0;
+      player.nextDirY = 0;
+
+      ghosts[0].x = 9 * CELL;
+      ghosts[0].y = 9 * CELL;
+      ghosts[1].x = 11 * CELL;
+      ghosts[1].y = 9 * CELL;
+      ghosts[2].x = 9 * CELL;
+      ghosts[2].y = 10 * CELL;
+      ghosts[3].x = 11 * CELL;
+      ghosts[3].y = 10 * CELL;
+
+      ghosts.forEach(g => {
+        g.dirX = 0;
+        g.dirY = 0;
+        g.scared = false;
+        g.recalcTimer = 0;
+      });
+    }
+
+    // Collision check across character bounding box corners
+    function canMove(px, py, dx, dy, speed, isPlayer) {
+      const nx = px + dx * speed;
+      const ny = py + dy * speed;
+      const corners = [
+        [nx + 2, ny + 2],
+        [nx + CELL - 3, ny + 2],
+        [nx + 2, ny + CELL - 3],
+        [nx + CELL - 3, ny + CELL - 3]
+      ];
+      
+      return corners.every(([cx, cy]) => {
+        let tc = Math.floor(cx / CELL);
+        let tr = Math.floor(cy / CELL);
+
+        // Allow wrapping in tunnels (rows 8-10)
+        if (tc < 0 || tc >= COLS) {
+          if (tr >= 8 && tr <= 10) return true;
+          return false;
+        }
+        if (tr < 0 || tr >= ROWS) return false;
+
+        const cellVal = maze[tr][tc];
+        if (cellVal === 1) return false; // wall blocked
+        if (isPlayer && cellVal === 4) return false; // player blocked from ghost house
+        return true;
+      });
+    }
+
+    // Character Movement Logic (Handles snap turning & reversing)
+    function updateCharacterPosition(char, speed, isPlayer) {
+      const nearestX = Math.round(char.x / CELL) * CELL;
+      const nearestY = Math.round(char.y / CELL) * CELL;
+
+      // Checking proximity to alignment centers
+      const isAlignedX = Math.abs(char.x - nearestX) < speed;
+      const isAlignedY = Math.abs(char.y - nearestY) < speed;
+
+      if (isAlignedX && isAlignedY) {
+        // Snap directly to center of grid cell
+        char.x = nearestX;
+        char.y = nearestY;
+
+        if (isPlayer) {
+          // If buffered nextDir is valid, apply it immediately
+          if (player.nextDirX !== 0 || player.nextDirY !== 0) {
+            if (canMove(char.x, char.y, player.nextDirX, player.nextDirY, speed, true)) {
+              char.dirX = player.nextDirX;
+              char.dirY = player.nextDirY;
+            }
+          } else {
+            // Active hold-to-move check: stop player at intersection if no keys are currently pressed
+            char.dirX = 0;
+            char.dirY = 0;
+          }
+        } else {
+          // Ghost decision block (at intersection, or if timer fires)
+          char.recalcTimer--;
+          const isBlocked = !canMove(char.x, char.y, char.dirX, char.dirY, speed, false);
+          
+          if (char.recalcTimer <= 0 || isBlocked || (char.dirX === 0 && char.dirY === 0)) {
+            const newDir = chooseGhostDirection(char);
+            char.dirX = newDir.x;
+            char.dirY = newDir.y;
+            const config = LEVEL_CONFIGS[level] || LEVEL_CONFIGS[5];
+            const range = config.recalcMax - config.recalcMin + 1;
+            char.recalcTimer = Math.floor(Math.random() * range) + config.recalcMin;
+            triggerRecalcFlash();
+          }
+        }
+      } else {
+        // Allow immediate direction reversal without alignment checks
+        if (isPlayer) {
+          const isReversing = (player.nextDirX === -char.dirX && player.nextDirX !== 0) ||
+                              (player.nextDirY === -char.dirY && player.nextDirY !== 0);
+          if (isReversing) {
+            char.dirX = player.nextDirX;
+            char.dirY = player.nextDirY;
+          }
+        }
+      }
+
+      // Perform position slide translation
+      if (canMove(char.x, char.y, char.dirX, char.dirY, speed, isPlayer)) {
+        char.x += char.dirX * speed;
+        char.y += char.dirY * speed;
+      } else {
+        // Collision stop
+        char.x = nearestX;
+        char.y = nearestY;
+        char.dirX = 0;
+        char.dirY = 0;
+      }
+
+      // Grid coordinate wrap boundaries
+      if (char.x < -CELL) {
+        char.x = COLS * CELL;
+      } else if (char.x > COLS * CELL) {
+        char.x = -CELL;
+      }
+    }
+
+    // Ghost Decision AI Rules
+    function chooseGhostDirection(ghost) {
+      const validDirs = [];
+      const config = LEVEL_CONFIGS[level] || LEVEL_CONFIGS[5];
+      const gSpeed = ghost.scared ? config.speed / 2 : config.speed;
+
+      for (let d of DIRS) {
+        const isReverse = (d.x === -ghost.dirX && d.x !== 0) || (d.y === -ghost.dirY && d.y !== 0);
+        if (canMove(ghost.x, ghost.y, d.x, d.y, gSpeed, false)) {
+          validDirs.push({ dir: d, isReverse: isReverse });
+        }
+      }
+
+      // Keep straight path, exclude 180 degree snaps unless necessary
+      let choices = validDirs.filter(choice => !choice.isReverse);
+      if (choices.length === 0) {
+        choices = validDirs; // default fallback
+      }
+
+      if (choices.length === 0) {
+        return { x: 0, y: 0 };
+      }
+
+      let selectedDir = choices[0].dir;
+
+      const pGridX = Math.round(player.x / CELL);
+      const pGridY = Math.round(player.y / CELL);
+
+      const gGridX = Math.round(ghost.x / CELL);
+      const gGridY = Math.round(ghost.y / CELL);
+
+      let tx = pGridX;
+      let ty = pGridY;
+
+      // Scared: Run away from JOSH (maximize distance)
+      if (ghost.scared) {
+        let maxDist = -1;
+        for (let choice of choices) {
+          const nextGridX = gGridX + choice.dir.x;
+          const nextGridY = gGridY + choice.dir.y;
+          const dist = Math.abs(nextGridX - pGridX) + Math.abs(nextGridY - pGridY);
+          if (dist > maxDist) {
+            maxDist = dist;
+            selectedDir = choice.dir;
+          }
+        }
+        return selectedDir;
+      }
+
+      // Normal state Target Selection
+      if (ghost.mode === 'chase') {
+        tx = pGridX;
+        ty = pGridY;
+      } else if (ghost.mode === 'ambush') {
+        tx = pGridX + player.dirX * 4;
+        ty = pGridY + player.dirY * 4;
+      } else if (ghost.mode === 'random') {
+        if (Math.random() < 0.70) {
+          const rand = choices[Math.floor(Math.random() * choices.length)];
+          return rand.dir;
+        } else {
+          tx = pGridX;
+          ty = pGridY;
+        }
+      } else if (ghost.mode === 'scatter') {
+        const distToPlayer = Math.abs(gGridX - pGridX) + Math.abs(gGridY - pGridY);
+        if (distToPlayer > 4) {
+          // Maximize distance from center tile (10, 10)
+          let maxDistCenter = -1;
+          for (let choice of choices) {
+            const nextGridX = gGridX + choice.dir.x;
+            const nextGridY = gGridY + choice.dir.y;
+            const distCenter = Math.abs(nextGridX - 10) + Math.abs(nextGridY - 10);
+            if (distCenter > maxDistCenter) {
+              maxDistCenter = distCenter;
+              selectedDir = choice.dir;
+            }
+          }
+          return selectedDir;
+        } else {
+          const rand = choices[Math.floor(Math.random() * choices.length)];
+          return rand.dir;
+        }
+      }
+
+      // Manhattan distance minimizer to target (tx, ty)
+      let minDist = Infinity;
+      for (let choice of choices) {
+        const nextGridX = gGridX + choice.dir.x;
+        const nextGridY = gGridY + choice.dir.y;
+        const dist = Math.abs(nextGridX - tx) + Math.abs(nextGridY - ty);
+        if (dist < minDist) {
+          minDist = dist;
+          selectedDir = choice.dir;
+        }
+      }
+
+      return selectedDir;
+    }
+
+    // 6. Food Consumption
+    function eatItems() {
+      const pCellX = Math.floor((player.x + CELL / 2) / CELL);
+      const pCellY = Math.floor((player.y + CELL / 2) / CELL);
+
+      if (pCellX >= 0 && pCellX < COLS && pCellY >= 0 && pCellY < ROWS) {
+        const cellVal = maze[pCellY][pCellX];
+        if (cellVal === 2) {
+          maze[pCellY][pCellX] = 0;
+          score += 10;
+          SoundEffects.playMunch();
+          checkLevelComplete();
+        } else if (cellVal === 3) {
+          maze[pCellY][pCellX] = 0;
+          score += 50;
+          SoundEffects.playPellet();
+          const config = LEVEL_CONFIGS[level] || LEVEL_CONFIGS[5];
+          powerModeTimer = config.scaredTime;
+          ghosts.forEach(g => { g.scared = true; });
+          checkLevelComplete();
+        }
+      }
+    }
+
+    // Check level progression win condition
+    function checkLevelComplete() {
+      const foodRemaining = maze.some(row => row.some(cell => cell === 2 || cell === 3));
+      if (!foodRemaining) {
+        // Pause active gameplay
+        activeScreen = 'levelcomplete';
+        SoundEffects.playVictory();
+        
+        const nextLvl = level + 1;
+        const currentConf = LEVEL_CONFIGS[level] || LEVEL_CONFIGS[5];
+        const nextConf = LEVEL_CONFIGS[nextLvl] || LEVEL_CONFIGS[5];
+        
+        // Populate Level Complete screen elements
+        const nextValEl = document.getElementById('next-level-val');
+        if (nextValEl) nextValEl.innerText = nextLvl;
+        
+        const speedValEl = document.getElementById('ghost-speed-val');
+        if (speedValEl) {
+          const speedDiff = (nextConf.speed - currentConf.speed).toFixed(1);
+          speedValEl.innerText = `+${speedDiff} px/frame (${nextConf.speed.toFixed(1)} total)`;
+        }
+        
+        const scaredValEl = document.getElementById('scared-time-val');
+        if (scaredValEl) {
+          const currentSec = (currentConf.scaredTime / 60).toFixed(1);
+          const nextSec = (nextConf.scaredTime / 60).toFixed(1);
+          scaredValEl.innerText = `${nextSec}s limit (was ${currentSec}s)`;
+        }
+        
+        showScreen('levelcomplete');
+        
+        setTimeout(() => {
+          level++;
+          applyLevelTheme(level);
+          resetMaze();
+          resetPositions();
+          showScreen('game');
+        }, 3000);
+      }
+    }
+
+    // Check collisions
+    function checkCollisions() {
+      const pCenterX = player.x + CELL / 2;
+      const pCenterY = player.y + CELL / 2;
+
+      ghosts.forEach(ghost => {
+        const gCenterX = ghost.x + CELL / 2;
+        const gCenterY = ghost.y + CELL / 2;
+        const dx = pCenterX - gCenterX;
+        const dy = pCenterY - gCenterY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 16) {
+          if (ghost.scared) {
+            // Eat ghost
+            score += 200;
+            SoundEffects.playEatGhost();
+            ghost.x = 10 * CELL;
+            ghost.y = 9 * CELL;
+            ghost.dirX = 0;
+            ghost.dirY = 0;
+            ghost.scared = false;
+            ghost.recalcTimer = 0;
+          } else {
+            // Collision death decrement
+            SoundEffects.playDeath();
+            lives--;
+            if (lives <= 0) {
+              showScreen('gameover');
+            } else {
+              resetPositions();
+            }
+          }
+        }
+      });
+    }
+
+    // HUD lives UI rendering
+    function updateLivesDisplay() {
+      const container = document.getElementById('lives-display');
+      container.innerHTML = '';
+      for (let i = 0; i < lives; i++) {
+        const life = document.createElement('div');
+        life.className = 'life-icon';
+        container.appendChild(life);
+      }
+    }
+
+    // Recalculating indicator blinkers
+    function triggerRecalcFlash() {
+      recalcFlashTimer = 30; // 500ms
+      const flash = document.getElementById('ai-recalc-flash');
+      flash.style.opacity = '1';
+    }
+
+    function updateRecalcFlash() {
+      if (recalcFlashTimer > 0) {
+        recalcFlashTimer--;
+        if (recalcFlashTimer === 0) {
+          const flash = document.getElementById('ai-recalc-flash');
+          flash.style.opacity = '0';
+        }
+      }
+    }
+
+    // 7. Graphics Canvas drawing Order
+    function drawMazeWalls() {
+      // Background colors
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (maze[r][c] === 1) {
+            ctx.fillStyle = '#1a0040';
+            ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+          }
+        }
+      }
+
+      // Neon outline edges
+      ctx.save();
+      ctx.strokeStyle = '#6d00cc';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#b400ff';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (maze[r][c] === 1) {
+            const x = c * CELL;
+            const y = r * CELL;
+            
+            if (r === 0 || maze[r - 1][c] !== 1) {
+              ctx.moveTo(x, y); ctx.lineTo(x + CELL, y);
+            }
+            if (r === ROWS - 1 || maze[r + 1][c] !== 1) {
+              ctx.moveTo(x, y + CELL); ctx.lineTo(x + CELL, y + CELL);
+            }
+            if (c === 0 || maze[r][c - 1] !== 1) {
+              ctx.moveTo(x, y); ctx.lineTo(x, y + CELL);
+            }
+            if (c === COLS - 1 || maze[r][c + 1] !== 1) {
+              ctx.moveTo(x + CELL, y); ctx.lineTo(x + CELL, y + CELL);
+            }
+          }
+        }
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      // House Gate border line
+      ctx.save();
+      ctx.strokeStyle = '#ff69b4';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#ff69b4';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(8 * CELL, 8 * CELL);
+      ctx.lineTo(13 * CELL, 8 * CELL);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawMazeItems() {
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const val = maze[r][c];
+          const centerX = c * CELL + CELL / 2;
+          const centerY = r * CELL + CELL / 2;
+
+          if (val === 2) {
+            // dots
+            ctx.save();
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 4;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          } else if (val === 3) {
+            // power pellets pulsing
+            ctx.save();
+            const pulseRadius = Math.sin(Date.now() / 150) * 1.5 + 5.5;
+            ctx.fillStyle = '#00f5ff';
+            ctx.shadowColor = '#00f5ff';
+            ctx.shadowBlur = Math.sin(Date.now() / 150) * 4 + 8;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+      }
+    }
+
+    function drawGhostShape(ctx, cx, cy, r) {
+      ctx.beginPath();
+      // Top half-circle arc
+      ctx.arc(cx, cy - r * 0.15, r, Math.PI, 0, false);
+      // Right side line down
+      ctx.lineTo(cx + r, cy + r * 0.9);
+      
+      // Wavy bottom tentacles animated over time
+      const wave = Math.sin(Date.now() / 80) * (r * 0.15);
+      ctx.lineTo(cx + r * 0.6, cy + r * 0.9 - Math.abs(wave));
+      ctx.lineTo(cx + r * 0.2, cy + r * 0.9 + wave);
+      ctx.lineTo(cx - r * 0.2, cy + r * 0.9 - Math.abs(wave));
+      ctx.lineTo(cx - r * 0.6, cy + r * 0.9 + wave);
+      
+      // Left side line up
+      ctx.lineTo(cx - r, cy + r * 0.9);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawCharacter(ctx, char) {
+      const centerX = char.x + CELL / 2;
+      const centerY = char.y + CELL / 2;
+      const radius = CELL / 2 - 2;
+
+      ctx.save();
+
+      // Check if player or ghost
+      const isPlayer = (char === player);
+
+      if (isPlayer) {
+        if (player.img && player.img.src && player.img.complete) {
+          // Draw JOSH image inside a circular clip path
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(player.img, centerX - radius, centerY - radius, radius * 2, radius * 2);
+          ctx.restore();
+
+          // Draw neon glowing border outline
+          ctx.save();
+          ctx.strokeStyle = '#ffe600';
+          ctx.lineWidth = 2;
+          ctx.shadowColor = '#ffe600';
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          // Draw JOSH procedurally
+          let chompAngle = 0.25;
+          if (player.dirX !== 0 || player.dirY !== 0) {
+            chompAngle = 0.35 * Math.abs(Math.sin(Date.now() / 80));
+          }
+          
+          let rotation = 0;
+          if (player.dirX === 1) rotation = 0;
+          else if (player.dirX === -1) rotation = Math.PI;
+          else if (player.dirY === 1) rotation = Math.PI / 2;
+          else if (player.dirY === -1) rotation = -Math.PI / 2;
+          
+          ctx.translate(centerX, centerY);
+          ctx.rotate(rotation);
+          
+          // Body fill with yellow glow
+          ctx.fillStyle = '#ffe600';
+          ctx.shadowColor = '#ffe600';
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.arc(0, 0, radius, chompAngle, Math.PI * 2 - chompAngle);
+          ctx.lineTo(0, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          // Draw Cyber Visor
+          ctx.strokeStyle = '#00f5ff';
+          ctx.lineWidth = 3;
+          ctx.shadowColor = '#00f5ff';
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.moveTo(radius * 0.2, -radius * 0.35);
+          ctx.lineTo(radius * 0.85, -radius * 0.35);
+          ctx.stroke();
+        }
+      } else {
+        // Draw Ghost
+        if (char.scared) {
+          // Scared ghost shape
+          ctx.fillStyle = '#050540';
+          ctx.shadowColor = '#00f5ff';
+          ctx.shadowBlur = Math.sin(Date.now() / 100) * 4 + 8;
+          drawGhostShape(ctx, centerX, centerY, radius);
+          ctx.shadowBlur = 0;
+          
+          // Draw scared eyes
+          ctx.strokeStyle = '#00f5ff';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(centerX - 3.5, centerY - 2, 1.5, 0, Math.PI * 2);
+          ctx.arc(centerX + 3.5, centerY - 2, 1.5, 0, Math.PI * 2);
+          ctx.stroke();
+          
+          // Frown wiggle mouth
+          ctx.beginPath();
+          ctx.moveTo(centerX - 5, centerY + 4);
+          ctx.lineTo(centerX - 2.5, centerY + 2);
+          ctx.lineTo(centerX, centerY + 4);
+          ctx.lineTo(centerX + 2.5, centerY + 2);
+          ctx.lineTo(centerX + 5, centerY + 4);
+          ctx.stroke();
+        } else if (char.img && char.img.src && char.img.complete) {
+          // Draw custom ghost avatar inside a circle
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(char.img, centerX - radius, centerY - radius, radius * 2, radius * 2);
+          ctx.restore();
+
+          // Draw custom ghost neon outline matching its signature color
+          ctx.save();
+          ctx.strokeStyle = char.color;
+          ctx.lineWidth = 2;
+          ctx.shadowColor = char.color;
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          // Regular ghost shape
+          ctx.fillStyle = char.color;
+          ctx.shadowColor = char.color;
+          ctx.shadowBlur = 8;
+          drawGhostShape(ctx, centerX, centerY, radius);
+          ctx.shadowBlur = 0;
+          
+          // White eyes
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(centerX - 4, centerY - 2, 2.8, 0, Math.PI * 2);
+          ctx.arc(centerX + 4, centerY - 2, 2.8, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Pupils looking in moving direction
+          ctx.fillStyle = '#0000ff';
+          let pupilX = 0;
+          let pupilY = 0;
+          if (char.dirX === 1) pupilX = 1.2;
+          else if (char.dirX === -1) pupilX = -1.2;
+          else if (char.dirY === 1) pupilY = 1.2;
+          else if (char.dirY === -1) pupilY = -1.2;
+          
+          ctx.beginPath();
+          ctx.arc(centerX - 4 + pupilX, centerY - 2 + pupilY, 1.2, 0, Math.PI * 2);
+          ctx.arc(centerX + 4 + pupilX, centerY - 2 + pupilY, 1.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.restore();
+
+      // Label below character if not scared
+      if (!char.scared) {
+        ctx.save();
+        ctx.fillStyle = char.color;
+        ctx.font = '7px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.shadowColor = char.color;
+        ctx.shadowBlur = 4;
+        ctx.fillText(char.name, centerX, centerY + radius + 4);
+        ctx.restore();
+      }
+    }
+
+    function renderGame() {
+      // 1. Clear background
+      ctx.fillStyle = '#050510';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 2. Draw walls
+      drawMazeWalls();
+
+      // 3. Draw items
+      drawMazeItems();
+
+      // 4. Draw ghosts
+      ghosts.forEach(ghost => {
+        drawCharacter(ctx, ghost);
+      });
+
+      // 5. Draw player JOSH
+      drawCharacter(ctx, player);
+    }
+
+    // 8. Core Game Engine Loop
+    function updateGame() {
+      // Decrement Power Mode Timer
+      if (powerModeTimer > 0) {
+        powerModeTimer--;
+        if (powerModeTimer === 0) {
+          ghosts.forEach(g => { g.scared = false; });
+        }
+      }
+
+      // Update player JOSH
+      updateCharacterPosition(player, 2, true);
+
+      // Eat items
+      eatItems();
+
+      // Update ghosts
+      ghosts.forEach(ghost => {
+        const config = LEVEL_CONFIGS[level] || LEVEL_CONFIGS[5];
+        const gSpeed = ghost.scared ? config.speed / 2 : config.speed;
+        updateCharacterPosition(ghost, gSpeed, false);
+      });
+
+      // Check overlaps
+      checkCollisions();
+
+      // Update DOM outputs
+      document.getElementById('score-display').innerText = score;
+      document.getElementById('level-display').innerText = level;
+      updateLivesDisplay();
+
+      // Flash ticks
+      updateRecalcFlash();
+    }
+
+    function gameLoop(timestamp) {
+      if (activeScreen === 'game') {
+        updateGame();
+        renderGame();
+      }
+      requestAnimationFrame(gameLoop);
+    }
+
+    // 9. Input Events: Keyboard inputs with active hold-to-move logic
+    const keysPressed = {};
+
+    function updatePlayerNextDir() {
+      const isUp = keysPressed['ArrowUp'] || keysPressed['w'] || keysPressed['W'];
+      const isDown = keysPressed['ArrowDown'] || keysPressed['s'] || keysPressed['S'];
+      const isLeft = keysPressed['ArrowLeft'] || keysPressed['a'] || keysPressed['A'];
+      const isRight = keysPressed['ArrowRight'] || keysPressed['d'] || keysPressed['D'];
+
+      if (isUp) {
+        player.nextDirX = 0;
+        player.nextDirY = -1;
+      } else if (isDown) {
+        player.nextDirX = 0;
+        player.nextDirY = 1;
+      } else if (isLeft) {
+        player.nextDirX = -1;
+        player.nextDirY = 0;
+      } else if (isRight) {
+        player.nextDirX = 1;
+        player.nextDirY = 0;
+      } else {
+        player.nextDirX = 0;
+        player.nextDirY = 0;
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (activeScreen !== 'game') return;
+
+      keysPressed[e.key] = true;
+      updatePlayerNextDir();
+
+      // Prevent window scrolling with arrows or spacebar
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'w', 's', 'a', 'd', 'W', 'S', 'A', 'D'].includes(e.key)) {
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (activeScreen !== 'game') return;
+
+      keysPressed[e.key] = false;
+      delete keysPressed[e.key];
+      updatePlayerNextDir();
+    });
+
+    // Touch and Click D-Pad listener setup (with hold-to-move capability)
+    function setupMobileDpad() {
+      const up = document.getElementById('dpad-up');
+      const down = document.getElementById('dpad-down');
+      const left = document.getElementById('dpad-left');
+      const right = document.getElementById('dpad-right');
+
+      const setDir = (dx, dy) => {
+        player.nextDirX = dx;
+        player.nextDirY = dy;
+      };
+
+      const clearDir = () => {
+        player.nextDirX = 0;
+        player.nextDirY = 0;
+      };
+
+      const bindBtn = (btn, dx, dy) => {
+        // Touch events
+        btn.addEventListener('touchstart', (e) => {
+          setDir(dx, dy);
+          e.preventDefault();
+        }, { passive: false });
+        
+        btn.addEventListener('touchend', (e) => {
+          clearDir();
+          e.preventDefault();
+        });
+
+        // Mouse click events
+        btn.addEventListener('mousedown', (e) => {
+          setDir(dx, dy);
+          e.preventDefault();
+        });
+
+        btn.addEventListener('mouseup', (e) => {
+          clearDir();
+          e.preventDefault();
+        });
+
+        btn.addEventListener('mouseleave', (e) => {
+          clearDir();
+          e.preventDefault();
+        });
+      };
+
+      bindBtn(up, 0, -1);
+      bindBtn(down, 0, 1);
+      bindBtn(left, -1, 0);
+      bindBtn(right, 1, 0);
+    }
+
+    // Game initial triggers
+    function startGame() {
+      if (!walletConnected) return;
+
+      score = 0;
+      level = 1;
+      lives = 3;
+      powerModeTimer = 0;
+
+      // Blur the Start Game button to prevent spacebar or arrow keys from refocusing/triggering it
+      if (document.activeElement) {
+        document.activeElement.blur();
+      }
+
+      applyLevelTheme(1);
+      resetMaze();
+      resetPositions();
+      showScreen('game');
+
+      // Force focus to the window for immediate keyboard controls
+      window.focus();
+    }
+
+    function playAgain() {
+      startGame();
+    }
+
+    function exitGame() {
+      if (confirm("Are you sure you want to exit to the Start Screen? Your current score will be lost.")) {
+        activeScreen = 'start';
+        showScreen('start');
+      }
+    }
+
+    function goToHome() {
+      showScreen('start');
+    }
+
+    // Diagnostics Loop
+    let currentBlockHeight = 1979024;
+    function startDiagnosticsLoop() {
+      setInterval(() => {
+        const latencyEl = document.getElementById('diag-latency');
+        if (latencyEl) {
+          const lat = 10 + Math.floor(Math.random() * 9);
+          latencyEl.innerText = `${lat}ms`;
+        }
+        const gasEl = document.getElementById('diag-gas');
+        if (gasEl) {
+          const gas = 18 + Math.floor(Math.random() * 11);
+          gasEl.innerText = `${gas} GWEI`;
+        }
+      }, 1500);
+
+      setInterval(() => {
+        currentBlockHeight++;
+        const blockEl = document.getElementById('diag-block');
+        if (blockEl) {
+          blockEl.innerText = `#${currentBlockHeight}`;
+        }
+      }, 12000);
+    }
+
+    // Onload setup init
+    window.onload = () => {
+      renderLeaderboard();
+      setupMobileDpad();
+      startDiagnosticsLoop();
+
+      // Play audio on button hover & click
+      const buttons = document.querySelectorAll('button, .network-info-header, .dpad-btn');
+      buttons.forEach(btn => {
+        btn.addEventListener('mouseenter', () => {
+          SoundEffects.playClick();
+        });
+        btn.addEventListener('click', () => {
+          SoundEffects.playClick();
+        });
+      });
+
+      // Level Map Node click inspector
+      const nodes = document.querySelectorAll('.level-node');
+      nodes.forEach(node => {
+        node.addEventListener('click', () => {
+          const lvl = parseInt(node.getAttribute('data-level'));
+          const config = LEVEL_CONFIGS[lvl];
+          if (config) {
+            const descText = document.getElementById('node-details-text');
+            if (descText) {
+              descText.innerText = config.desc;
+              descText.style.color = config.color;
+              descText.style.textShadow = `0 0 4px ${config.color}`;
+            }
+            SoundEffects.playClick();
+          }
+        });
+      });
+
+      // Audio and Video setup trigger on first interaction
+      document.body.addEventListener('click', () => {
+        SoundEffects.init();
+        const bgVideo = document.getElementById('bg-video');
+        if (bgVideo && bgVideo.paused) {
+          bgVideo.play().catch(err => {
+            console.log("Background video play trigger failed, recovering:", err);
+            bgVideo.load();
+            bgVideo.play().catch(e => console.error("Video failed completely:", e));
+          });
+        }
+      }, { once: true });
+
+      requestAnimationFrame(gameLoop);
+    };
+
+    // Canvas resize triggers
+    window.addEventListener('resize', () => {
+      // Keep internal resolution intact
+      canvas.width = COLS * CELL;
+      canvas.height = ROWS * CELL;
+    });
+  </script>
+</body>
+</html>
